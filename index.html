@@ -49,9 +49,17 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #4b5563;
         }
-        /* 自定義 Slider 軌道與滑塊樣式 */
         input[type=range] {
             accent-color: #06b6d4;
+        }
+        /* 拖曳時的視覺回饋樣式 */
+        .dragging {
+            opacity: 0.4;
+            border: 2px dashed #06b6d4 !important;
+        }
+        .drag-over {
+            border-color: #06b6d4 !important;
+            background-color: rgba(6, 182, 212, 0.05) !important;
         }
     </style>
 </head>
@@ -80,7 +88,7 @@
     <!-- Main 主要內容區 -->
     <main class="max-w-7xl mx-auto px-4 py-8 w-full flex-grow space-y-10">
         
-        <!-- 區塊一：即時世界時鐘 -->
+        <!-- 區塊一：即時世界時鐘 (支援拖曳排序) -->
         <section>
             <div class="flex justify-between items-center mb-6">
                 <div>
@@ -88,7 +96,7 @@
                         <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
                         即時世界時鐘
                     </h2>
-                    <p class="text-xs text-gray-400">追蹤主要城市的目前時間、國家與時差資訊</p>
+                    <p class="text-xs text-gray-400">追蹤主要城市的目前時間、國家與時差資訊（💡 可按住卡片進行拖曳排序）</p>
                 </div>
                 <button onclick="openAddCityModal()" class="text-xs bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 shadow-neon">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
@@ -102,16 +110,16 @@
             </div>
         </section>
 
-        <!-- 區塊二：跨國會議時間規劃器 (含 24 小時滑動軸) -->
+        <!-- 區塊二：跨國會議時間規劃器 (含 24 小時視覺化拖曳/點擊時間軸) -->
         <section class="bg-cardBg border border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
             <div class="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
             
             <div class="mb-6">
                 <h2 class="text-lg font-semibold text-white flex items-center gap-2">
                     <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    跨國會議與 24 小時滑動時間軸
+                    跨國會議與互動時間軸
                 </h2>
-                <p class="text-xs text-gray-400">選擇基準城市與日期，並拖曳下方 24 小時滑桿來模擬不同時間各城市的對應狀況</p>
+                <p class="text-xs text-gray-400">選擇基準城市與日期，並可直接拖曳下方 24 小時滑桿或點擊視覺化時間方塊來挑選會議時間</p>
             </div>
 
             <!-- 控制面板 -->
@@ -128,27 +136,29 @@
                 </div>
             </div>
 
-            <!-- 24 小時互動滑桿區塊 -->
-            <div class="bg-gray-900/80 border border-gray-800 rounded-xl p-5 mb-6 space-y-3">
+            <!-- 24 小時滑桿與互動視覺時間軸區塊 -->
+            <div class="bg-gray-900/80 border border-gray-800 rounded-xl p-5 mb-6 space-y-4">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs font-medium text-gray-300">基準時間滑桿 (00:00 - 23:00)</span>
+                    <span class="text-xs font-medium text-gray-300">基準時間選擇器 (滑動或點擊方塊)</span>
                     <div class="text-cyan-400 font-mono font-bold text-lg" id="slider-time-display">12:00</div>
                 </div>
+                
+                <!-- 傳統 24 小時滑桿 -->
                 <input type="range" id="planner-slider" min="0" max="23" step="1" value="12" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-                <div class="flex justify-between text-[10px] text-gray-500 font-mono px-1">
-                    <span>00:00</span>
-                    <span>03:00</span>
-                    <span>06:00</span>
-                    <span>09:00</span>
-                    <span>12:00</span>
-                    <span>15:00</span>
-                    <span>18:00</span>
-                    <span>21:00</span>
-                    <span>23:00</span>
+
+                <!-- 24 小時互動方塊格子條 -->
+                <div class="pt-2">
+                    <div class="text-[11px] text-gray-400 mb-1.5 flex justify-between">
+                        <span>24小時分段對照 (點擊直接跳轉)</span>
+                        <span class="text-cyan-400">💡 支援拖曳/滑動選取</span>
+                    </div>
+                    <div id="timeline-blocks" class="grid grid-cols-12 sm:grid-cols-24 gap-1 select-none">
+                        <!-- 動態生成 0-23 小時方塊 -->
+                    </div>
                 </div>
             </div>
 
-            <!-- 24小時時間軸 / 對照列表 -->
+            <!-- 城市對照列表 -->
             <div class="space-y-4">
                 <div class="flex justify-between items-center text-xs text-gray-400 px-1">
                     <span>城市對照與狀態提示</span>
@@ -193,7 +203,6 @@
     <script>
         const DateTime = luxon.DateTime;
 
-        // 完整可用城市清單與詳細資訊
         const cityDatabase = {
             "Asia/Taipei": { name: "台北", country: "台灣", region: "東亞" },
             "Asia/Tokyo": { name: "東京", country: "日本", region: "東亞" },
@@ -213,7 +222,6 @@
             "Asia/Kolkata": { name: "孟買", country: "印度", region: "南亞" }
         };
 
-        // 預設使用者追蹤的城市時區
         let userTrackedZones = [
             "Asia/Taipei",
             "America/New_York",
@@ -222,7 +230,6 @@
             "America/Los_Angeles"
         ];
 
-        // 從 LocalStorage 載入自定義城市
         function loadSavedCities() {
             const saved = localStorage.getItem('nexus_time_cities');
             if (saved) {
@@ -238,20 +245,48 @@
             localStorage.setItem('nexus_time_cities', JSON.stringify(userTrackedZones));
         }
 
-        // 初始化頁面
         document.addEventListener('DOMContentLoaded', () => {
             loadSavedCities();
             initPlannerControls();
             updateAll();
             
-            // 每秒更新即時時鐘
             setInterval(updateRealtimeClocks, 1000);
 
-            // 監聽會議規劃器變動
             document.getElementById('planner-base-city').addEventListener('change', updatePlanner);
             document.getElementById('planner-date').addEventListener('change', updatePlanner);
             document.getElementById('planner-slider').addEventListener('input', updatePlanner);
+
+            // 支援 24 小時格子條上的拖曳選取
+            const blocksContainer = document.getElementById('timeline-blocks');
+            let isDraggingTimeline = false;
+
+            blocksContainer.addEventListener('mousedown', (e) => {
+                isDraggingTimeline = true;
+                handleDragSelect(e);
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (isDraggingTimeline) {
+                    handleDragSelect(e);
+                }
+            });
+
+            window.addEventListener('mouseup', () => {
+                isDraggingTimeline = false;
+            });
         });
+
+        function handleDragSelect(e) {
+            const target = document.elementFromPoint(e.clientX, e.clientY);
+            if (target && target.dataset.hour !== undefined) {
+                const hour = parseInt(target.dataset.hour);
+                const slider = document.getElementById('planner-slider');
+                if (parseInt(slider.value) !== hour) {
+                    slider.value = hour;
+                    updatePlanner();
+                }
+            }
+        }
 
         function updateAll() {
             updateRealtimeClocks();
@@ -259,7 +294,7 @@
             updatePlanner();
         }
 
-        // 更新頂部 UTC 時間與即時時鐘
+        // 更新頂部 UTC 時間與即時時鐘（含卡片 Drag & Drop 拖曳排序事件綁定）
         function updateRealtimeClocks() {
             const nowUTC = DateTime.utc();
             document.getElementById('current-utc').innerText = `UTC 現在時間: ${nowUTC.toFormat('yyyy-MM-dd HH:mm:ss')}`;
@@ -267,25 +302,63 @@
             const grid = document.getElementById('clocks-grid');
             grid.innerHTML = '';
 
-            userTrackedZones.forEach(zone => {
+            userTrackedZones.forEach((zone, index) => {
                 const dt = DateTime.now().setZone(zone);
                 const info = cityDatabase[zone] || { name: zone.split('/').pop(), country: "未知", region: "" };
                 const isNight = dt.hour < 6 || dt.hour >= 20;
                 const offsetStr = dt.toFormat('ZZ');
 
-                // 計算與本地時差
                 const localDt = DateTime.now();
                 const diffHours = (dt.offset - localDt.offset) / 60;
                 let diffText = diffHours === 0 ? '與您相同' : (diffHours > 0 ? `快 ${diffHours} 小時` : `慢 ${Math.abs(diffHours)} 小時`);
 
                 const card = document.createElement('div');
-                card.className = `bg-gray-900/80 border ${isNight ? 'border-purple-900/50 shadow-neon-purple' : 'border-gray-800 shadow-neon'} rounded-xl p-4 relative group transition-all hover:border-cyan-500/50 flex flex-col justify-between`;
+                card.className = `bg-gray-900/80 border ${isNight ? 'border-purple-900/50 shadow-neon-purple' : 'border-gray-800 shadow-neon'} rounded-xl p-4 relative group transition-all hover:border-cyan-500/50 flex flex-col justify-between cursor-grab active:cursor-grabbing`;
                 
+                // 設定 HTML5 Drag and Drop 屬性
+                card.draggable = true;
+                card.dataset.index = index;
+
+                card.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', index);
+                    card.classList.add('dragging');
+                });
+
+                card.addEventListener('dragend', () => {
+                    card.classList.remove('dragging');
+                    document.querySelectorAll('#clocks-grid > div').forEach(el => el.classList.remove('drag-over'));
+                });
+
+                card.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    card.classList.add('drag-over');
+                });
+
+                card.addEventListener('dragleave', () => {
+                    card.classList.remove('drag-over');
+                });
+
+                card.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    card.classList.remove('drag-over');
+                    const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                    const targetIndex = parseInt(card.dataset.index);
+
+                    if (draggedIndex !== targetIndex) {
+                        // 重新排列陣列
+                        const movedItem = userTrackedZones.splice(draggedIndex, 1)[0];
+                        userTrackedZones.splice(targetIndex, 0, movedItem);
+                        saveCities();
+                        updateAll();
+                    }
+                });
+
                 card.innerHTML = `
                     <div>
                         <div class="flex justify-between items-start mb-2">
                             <div>
                                 <div class="flex items-center gap-1.5">
+                                    <span class="text-gray-600 group-hover:text-cyan-400 transition-colors" title="按住可拖曳排序">⋮⋮</span>
                                     <h3 class="font-semibold text-white text-base">${info.name}</h3>
                                     <span class="text-[10px] bg-gray-800 text-gray-300 px-1.5 py-0.5 rounded border border-gray-700">${info.country}</span>
                                 </div>
@@ -310,16 +383,13 @@
             });
         }
 
-        // 初始化會議規劃器的控制項
         function initPlannerControls() {
             const todayStr = DateTime.now().toFormat('yyyy-MM-dd');
             document.getElementById('planner-date').value = todayStr;
-            // 預設滑桿設為當前小時
             const currentHour = DateTime.now().hour;
             document.getElementById('planner-slider').value = currentHour;
         }
 
-        // 更新會議規劃器的城市下拉選單
         function updatePlannerSelects() {
             const baseSelect = document.getElementById('planner-base-city');
             const currentSelected = baseSelect.value || userTrackedZones[0];
@@ -335,7 +405,6 @@
             });
         }
 
-        // 更新會議規劃器時間軸計算與滑桿顯示
         function updatePlanner() {
             const baseZone = document.getElementById('planner-base-city').value;
             const dateStr = document.getElementById('planner-date').value;
@@ -343,8 +412,9 @@
 
             if (!baseZone || !dateStr || isNaN(hourVal)) return;
 
-            // 更新滑桿上方的時段文字
             document.getElementById('slider-time-display').innerText = `${hourVal.toString().padStart(2, '0')}:00`;
+
+            renderTimelineBlocks(hourVal);
 
             const baseDt = DateTime.fromISO(`${dateStr}T${hourVal.toString().padStart(2, '0')}:00`, { zone: baseZone });
 
@@ -397,7 +467,31 @@
             });
         }
 
-        // Modal 互動控制
+        function renderTimelineBlocks(currentSelectedHour) {
+            const container = document.getElementById('timeline-blocks');
+            container.innerHTML = '';
+
+            for (let i = 0; i < 24; i++) {
+                const isSelected = i === currentSelectedHour;
+                const block = document.createElement('div');
+                block.dataset.hour = i;
+                block.className = `h-9 rounded flex flex-col items-center justify-center cursor-pointer transition-all text-xs font-mono ${
+                    isSelected 
+                        ? 'bg-cyan-500 text-white font-bold ring-2 ring-cyan-300 shadow-neon' 
+                        : (i >= 9 && i < 18 ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-900/90 hover:bg-gray-800 text-gray-500 border border-gray-800')
+                }`;
+                block.innerHTML = `<span>${i.toString().padStart(2, '0')}</span>`;
+                block.title = `${i}:00`;
+                
+                block.addEventListener('click', () => {
+                    document.getElementById('planner-slider').value = i;
+                    updatePlanner();
+                });
+
+                container.appendChild(block);
+            }
+        }
+
         function openAddCityModal() {
             const select = document.getElementById('modal-city-select');
             select.innerHTML = '';
