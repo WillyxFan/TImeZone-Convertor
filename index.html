@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>時差轉換與會議規劃器</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0b0f19',
+                        cardBg: '#111827',
+                        neonCyan: '#06b6d4',
+                        neonPurple: '#a855f7',
+                    },
+                    boxShadow: {
+                        'neon': '0 0 15px rgba(6, 182, 212, 0.3)',
+                        'neon-purple': '0 0 15px rgba(168, 85, 247, 0.3)',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Luxon.js 用於精確的時區處理 -->
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+        }
+        /* 自定義捲軸 */
+        ::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+        /* 自定義 Slider 軌道與滑塊樣式 */
+        input[type=range] {
+            accent-color: #06b6d4;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-white">
+
+    <!-- Header 頂部區塊 -->
+    <header class="border-b border-gray-800 bg-cardBg/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center shadow-neon">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">Nexus Time / 時差轉換</h1>
+                    <p class="text-xs text-gray-400">跨國會議規劃與即時世界時鐘</p>
+                </div>
+            </div>
+            <div id="current-utc" class="text-xs font-mono bg-gray-900 border border-gray-800 px-3 py-1.5 rounded-lg text-cyan-400 shadow-inner">
+                载入中...
+            </div>
+        </div>
+    </header>
+
+    <!-- Main 主要內容區 -->
+    <main class="max-w-7xl mx-auto px-4 py-8 w-full flex-grow space-y-10">
+        
+        <!-- 區塊一：即時世界時鐘 -->
+        <section>
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                        即時世界時鐘
+                    </h2>
+                    <p class="text-xs text-gray-400">追蹤主要城市的目前時間、國家與時差資訊</p>
+                </div>
+                <button onclick="openAddCityModal()" class="text-xs bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 shadow-neon">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    新增城市
+                </button>
+            </div>
+            
+            <!-- 城市卡片網格 -->
+            <div id="clocks-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <!-- 動態生成 -->
+            </div>
+        </section>
+
+        <!-- 區塊二：跨國會議時間規劃器 (含 24 小時滑動軸) -->
+        <section class="bg-cardBg border border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    跨國會議與 24 小時滑動時間軸
+                </h2>
+                <p class="text-xs text-gray-400">選擇基準城市與日期，並拖曳下方 24 小時滑桿來模擬不同時間各城市的對應狀況</p>
+            </div>
+
+            <!-- 控制面板 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 bg-gray-900/60 p-4 rounded-xl border border-gray-800">
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">基準城市 (您的所在地)</label>
+                    <select id="planner-base-city" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500">
+                        <!-- 動態生成 -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-400 mb-1">基準日期</label>
+                    <input type="date" id="planner-date" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500">
+                </div>
+            </div>
+
+            <!-- 24 小時互動滑桿區塊 -->
+            <div class="bg-gray-900/80 border border-gray-800 rounded-xl p-5 mb-6 space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-medium text-gray-300">基準時間滑桿 (00:00 - 23:00)</span>
+                    <div class="text-cyan-400 font-mono font-bold text-lg" id="slider-time-display">12:00</div>
+                </div>
+                <input type="range" id="planner-slider" min="0" max="23" step="1" value="12" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                <div class="flex justify-between text-[10px] text-gray-500 font-mono px-1">
+                    <span>00:00</span>
+                    <span>03:00</span>
+                    <span>06:00</span>
+                    <span>09:00</span>
+                    <span>12:00</span>
+                    <span>15:00</span>
+                    <span>18:00</span>
+                    <span>21:00</span>
+                    <span>23:00</span>
+                </div>
+            </div>
+
+            <!-- 24小時時間軸 / 對照列表 -->
+            <div class="space-y-4">
+                <div class="flex justify-between items-center text-xs text-gray-400 px-1">
+                    <span>城市對照與狀態提示</span>
+                    <div class="flex items-center gap-3">
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 適合開會 (09:00 - 18:00)</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> 正常作息</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> 深夜/清晨</span>
+                    </div>
+                </div>
+                
+                <div id="timeline-container" class="space-y-3">
+                    <!-- 動態生成對照列 -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer 底部區塊 -->
+    <footer class="border-t border-gray-800 bg-cardBg/30 py-6 text-center text-xs text-gray-500">
+        <p>創建日期：2026-10-17 | 時差轉換與跨國會議協作工具</p>
+    </footer>
+
+    <!-- 新增城市 Modal -->
+    <div id="add-city-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-cardBg border border-gray-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
+            <h3 class="text-lg font-bold text-white">新增追蹤城市</h3>
+            <p class="text-xs text-gray-400">從下方清單選擇您想加入世界時鐘的城市：</p>
+            <div>
+                <select id="modal-city-select" class="w-full bg-gray-800 border border-gray-700 text-sm rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-cyan-500">
+                    <!-- 預設常用世界時區 -->
+                </select>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeAddCityModal()" class="px-4 py-2 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-all">取消</button>
+                <button onclick="confirmAddCity()" class="px-4 py-2 text-xs bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-medium rounded-lg shadow-neon hover:opacity-90 transition-all">確認新增</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 核心互動邏輯 -->
+    <script>
+        const DateTime = luxon.DateTime;
+
+        // 完整可用城市清單與詳細資訊
+        const cityDatabase = {
+            "Asia/Taipei": { name: "台北", country: "台灣", region: "東亞" },
+            "Asia/Tokyo": { name: "東京", country: "日本", region: "東亞" },
+            "Asia/Seoul": { name: "首爾", country: "南韓", region: "東亞" },
+            "Asia/Singapore": { name: "新加坡", country: "新加坡", region: "東南亞" },
+            "Asia/Hong_Kong": { name: "香港", country: "香港", region: "東亞" },
+            "Asia/Shanghai": { name: "北京", country: "中國", region: "東亞" },
+            "Australia/Sydney": { name: "雪梨", country: "澳洲", region: "大洋洲" },
+            "Europe/London": { name: "倫敦", country: "英國", region: "歐洲" },
+            "Europe/Paris": { name: "巴黎", country: "法國", region: "歐洲" },
+            "Europe/Berlin": { name: "柏林", country: "德國", region: "歐洲" },
+            "America/New_York": { name: "紐約", country: "美國", region: "北美洲" },
+            "America/Los_Angeles": { name: "洛杉磯", country: "美國", region: "北美洲" },
+            "America/Vancouver": { name: "溫哥華", country: "加拿大", region: "北美洲" },
+            "America/Sao_Paulo": { name: "聖保羅", country: "巴西", region: "南美洲" },
+            "Asia/Dubai": { name: "杜拜", country: "阿聯酋", region: "中東" },
+            "Asia/Kolkata": { name: "孟買", country: "印度", region: "南亞" }
+        };
+
+        // 預設使用者追蹤的城市時區
+        let userTrackedZones = [
+            "Asia/Taipei",
+            "America/New_York",
+            "Europe/London",
+            "Asia/Tokyo",
+            "America/Los_Angeles"
+        ];
+
+        // 從 LocalStorage 載入自定義城市
+        function loadSavedCities() {
+            const saved = localStorage.getItem('nexus_time_cities');
+            if (saved) {
+                try {
+                    userTrackedZones = JSON.parse(saved);
+                } catch (e) {
+                    console.error("讀取儲存城市失敗", e);
+                }
+            }
+        }
+
+        function saveCities() {
+            localStorage.setItem('nexus_time_cities', JSON.stringify(userTrackedZones));
+        }
+
+        // 初始化頁面
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSavedCities();
+            initPlannerControls();
+            updateAll();
+            
+            // 每秒更新即時時鐘
+            setInterval(updateRealtimeClocks, 1000);
+
+            // 監聽會議規劃器變動
+            document.getElementById('planner-base-city').addEventListener('change', updatePlanner);
+            document.getElementById('planner-date').addEventListener('change', updatePlanner);
+            document.getElementById('planner-slider').addEventListener('input', updatePlanner);
+        });
+
+        function updateAll() {
+            updateRealtimeClocks();
+            updatePlannerSelects();
+            updatePlanner();
+        }
+
+        // 更新頂部 UTC 時間與即時時鐘
+        function updateRealtimeClocks() {
+            const nowUTC = DateTime.utc();
+            document.getElementById('current-utc').innerText = `UTC 現在時間: ${nowUTC.toFormat('yyyy-MM-dd HH:mm:ss')}`;
+
+            const grid = document.getElementById('clocks-grid');
+            grid.innerHTML = '';
+
+            userTrackedZones.forEach(zone => {
+                const dt = DateTime.now().setZone(zone);
+                const info = cityDatabase[zone] || { name: zone.split('/').pop(), country: "未知", region: "" };
+                const isNight = dt.hour < 6 || dt.hour >= 20;
+                const offsetStr = dt.toFormat('ZZ');
+
+                // 計算與本地時差
+                const localDt = DateTime.now();
+                const diffHours = (dt.offset - localDt.offset) / 60;
+                let diffText = diffHours === 0 ? '與您相同' : (diffHours > 0 ? `快 ${diffHours} 小時` : `慢 ${Math.abs(diffHours)} 小時`);
+
+                const card = document.createElement('div');
+                card.className = `bg-gray-900/80 border ${isNight ? 'border-purple-900/50 shadow-neon-purple' : 'border-gray-800 shadow-neon'} rounded-xl p-4 relative group transition-all hover:border-cyan-500/50 flex flex-col justify-between`;
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <div class="flex items-center gap-1.5">
+                                    <h3 class="font-semibold text-white text-base">${info.name}</h3>
+                                    <span class="text-[10px] bg-gray-800 text-gray-300 px-1.5 py-0.5 rounded border border-gray-700">${info.country}</span>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-0.5">${dt.toFormat('yyyy-MM-dd (ccc)')}</p>
+                            </div>
+                            ${userTrackedZones.length > 1 ? `
+                                <button onclick="removeCity('${zone}')" class="text-gray-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-1" title="移除城市">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div class="my-3">
+                            <div class="text-3xl font-mono font-bold text-cyan-300 tracking-wider">${dt.toFormat('HH:mm:ss')}</div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-gray-400 pt-2 border-t border-gray-800/60">
+                        <span class="text-cyan-400/90 font-medium">${diffText}</span>
+                        <span class="font-mono bg-gray-800/80 px-2 py-0.5 rounded text-gray-300">UTC ${offsetStr}</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // 初始化會議規劃器的控制項
+        function initPlannerControls() {
+            const todayStr = DateTime.now().toFormat('yyyy-MM-dd');
+            document.getElementById('planner-date').value = todayStr;
+            // 預設滑桿設為當前小時
+            const currentHour = DateTime.now().hour;
+            document.getElementById('planner-slider').value = currentHour;
+        }
+
+        // 更新會議規劃器的城市下拉選單
+        function updatePlannerSelects() {
+            const baseSelect = document.getElementById('planner-base-city');
+            const currentSelected = baseSelect.value || userTrackedZones[0];
+            baseSelect.innerHTML = '';
+
+            userTrackedZones.forEach(zone => {
+                const info = cityDatabase[zone] || { name: zone, country: '' };
+                const opt = document.createElement('option');
+                opt.value = zone;
+                opt.text = `${info.name} (${info.country})`;
+                if (zone === currentSelected) opt.selected = true;
+                baseSelect.appendChild(opt);
+            });
+        }
+
+        // 更新會議規劃器時間軸計算與滑桿顯示
+        function updatePlanner() {
+            const baseZone = document.getElementById('planner-base-city').value;
+            const dateStr = document.getElementById('planner-date').value;
+            const hourVal = parseInt(document.getElementById('planner-slider').value);
+
+            if (!baseZone || !dateStr || isNaN(hourVal)) return;
+
+            // 更新滑桿上方的時段文字
+            document.getElementById('slider-time-display').innerText = `${hourVal.toString().padStart(2, '0')}:00`;
+
+            const baseDt = DateTime.fromISO(`${dateStr}T${hourVal.toString().padStart(2, '0')}:00`, { zone: baseZone });
+
+            const container = document.getElementById('timeline-container');
+            container.innerHTML = '';
+
+            userTrackedZones.forEach(zone => {
+                const targetDt = baseDt.setZone(zone);
+                const targetHour = targetDt.hour;
+                const info = cityDatabase[zone] || { name: zone, country: '' };
+
+                let statusColor = 'bg-amber-500';
+                let statusText = '正常作息';
+                let statusBadgeBg = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+
+                if (targetHour >= 9 && targetHour < 18) {
+                    statusColor = 'bg-emerald-500';
+                    statusText = '適合開會';
+                    statusBadgeBg = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+                } else if (targetHour < 6 || targetHour >= 22) {
+                    statusColor = 'bg-rose-500';
+                    statusText = '深夜/清晨';
+                    statusBadgeBg = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+                }
+
+                const row = document.createElement('div');
+                row.className = 'bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all hover:border-gray-700';
+                
+                row.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 rounded-full ${statusColor} shrink-0"></div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h4 class="font-semibold text-white text-sm">${info.name}</h4>
+                                <span class="text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded border border-gray-700">${info.country}</span>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-0.5">UTC ${targetDt.toFormat('ZZ')}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                        <div class="text-right">
+                            <div class="text-lg font-mono font-bold text-white">${targetDt.toFormat('yyyy-MM-dd HH:mm')}</div>
+                        </div>
+                        <span class="text-xs px-2.5 py-1 rounded-full border ${statusBadgeBg} shrink-0">
+                            ${statusText}
+                        </span>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        // Modal 互動控制
+        function openAddCityModal() {
+            const select = document.getElementById('modal-city-select');
+            select.innerHTML = '';
+            
+            const availableKeys = Object.keys(cityDatabase).filter(zone => !userTrackedZones.includes(zone));
+
+            if (availableKeys.length === 0) {
+                const opt = document.createElement('option');
+                opt.text = "所有可用城市已全部加入";
+                opt.disabled = true;
+                select.appendChild(opt);
+            } else {
+                availableKeys.forEach(zone => {
+                    const info = cityDatabase[zone];
+                    const opt = document.createElement('option');
+                    opt.value = zone;
+                    opt.text = `${info.name} (${info.country}) - ${zone}`;
+                    select.appendChild(opt);
+                });
+            }
+
+            document.getElementById('add-city-modal').classList.remove('hidden');
+            document.getElementById('add-city-modal').classList.add('flex');
+        }
+
+        function closeAddCityModal() {
+            document.getElementById('add-city-modal').classList.remove('flex');
+            document.getElementById('add-city-modal').classList.add('hidden');
+        }
+
+        function confirmAddCity() {
+            const select = document.getElementById('modal-city-select');
+            const zone = select.value;
+            if (zone && !userTrackedZones.includes(zone)) {
+                userTrackedZones.push(zone);
+                saveCities();
+                updateAll();
+                closeAddCityModal();
+            }
+        }
+
+        function removeCity(zone) {
+            if (userTrackedZones.length <= 1) {
+                alert("至少需要保留一個追蹤城市！");
+                return;
+            }
+            userTrackedZones = userTrackedZones.filter(z => z !== zone);
+            saveCities();
+            updateAll();
+        }
+    </script>
+</body>
+</html>
